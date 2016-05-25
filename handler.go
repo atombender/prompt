@@ -57,7 +57,7 @@ func NewHandler(configs []ExporterConfig) http.HandlerFunc {
 		}
 
 		var wg sync.WaitGroup
-		buffers := make([]*bytes.Buffer, len(exps))
+		buffers := make([]*bytes.Buffer, len(jobs))
 		for idx, job := range jobs {
 			wg.Add(1)
 			buffers[idx] = new(bytes.Buffer)
