@@ -1,0 +1,12 @@
+hash: 5d1269d39ee3633224609129bd84f701bb26061503ff66ec9128dff5775fb35f
+updated: 2016-05-25T16:13:23.384468284-04:00
+imports:
+- name: github.com/jessevdk/go-flags
+  version: b350cb1deecd3da4b80a29ccc4054abfd6329001
+- name: github.com/op/go-logging
+  version: b2cb9fa56473e98db8caba80237377e83fe44db5
+- name: github.com/pkg/errors
+  version: 936b5d744d061b4142dbe0f26cb08fd10e2079be
+- name: gopkg.in/yaml.v2
+  version: a83829b6f1293c91addabc89d0571c246397bbf4
+devImports: []

@@ -1,0 +1,6 @@
+package: github.com/atombender/prompt
+import:
+- package: gopkg.in/yaml.v2
+- package: github.com/op/go-logging
+  version: v1
+- package: github.com/pkg/errors
