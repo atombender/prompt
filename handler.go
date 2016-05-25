@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -9,11 +10,17 @@ import (
 	"sync"
 )
 
+type Job struct {
+	Name       string
+	Exporter   Exporter
+	ErrorCount int64
+}
+
 func NewHandler(configs []ExporterConfig) http.HandlerFunc {
-	exportersByName := map[string]Exporter{}
-	exporters := []Exporter{}
+	jobsByName := map[string]Job{}
+	jobs := []Job{}
 	for _, config := range configs {
-		if _, ok := exportersByName[config.Name]; ok {
+		if _, ok := jobsByName[config.Name]; ok {
 			logger.Warningf("Exporter %q was added more than once; ignoring", config.Name)
 			continue
 		}
@@ -21,16 +28,20 @@ func NewHandler(configs []ExporterConfig) http.HandlerFunc {
 		logger.Infof("Adding exporter %q", config.Name)
 		exporter := NewBaseExporter(config)
 
-		exportersByName[config.Name] = exporter
-		exporters = append(exporters, exporter)
+		job := Job{
+			Name:     config.Name,
+			Exporter: exporter,
+		}
+		jobsByName[config.Name] = job
+		jobs = append(jobs, job)
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		var exps []Exporter
+		var exps []Job
 		if match := metricsSubPath.FindStringSubmatch(req.URL.Path); len(match) > 0 {
 			name := match[1]
-			if exporter, ok := exportersByName[name]; ok {
-				exps = []Exporter{exporter}
+			if job, ok := jobsByName[name]; ok {
+				exps = []Job{job}
 			} else {
 				logger.Errorf("No such exporter %q", name)
 				w.WriteHeader(404)
@@ -38,7 +49,7 @@ func NewHandler(configs []ExporterConfig) http.HandlerFunc {
 				return
 			}
 		} else {
-			exps = exporters
+			exps = jobs
 		}
 		if len(exps) == 0 {
 			w.WriteHeader(204)
@@ -47,13 +58,13 @@ func NewHandler(configs []ExporterConfig) http.HandlerFunc {
 
 		var wg sync.WaitGroup
 		buffers := make([]*bytes.Buffer, len(exps))
-		for idx, exporter := range exporters {
+		for idx, job := range jobs {
 			wg.Add(1)
 			buffers[idx] = new(bytes.Buffer)
-			go func(exporter Exporter, buf *bytes.Buffer) {
+			go func(job Job, buf *bytes.Buffer) {
 				defer wg.Done()
-				runExporter(exporter, buf)
-			}(exporter, buffers[idx])
+				runJob(job, buf)
+			}(job, buffers[idx])
 		}
 		wg.Wait()
 
@@ -64,15 +75,23 @@ func NewHandler(configs []ExporterConfig) http.HandlerFunc {
 				logger.Errorf("Error emitting data: %s", err)
 			}
 		}
+
+		bw := bufio.NewWriter(w)
+		bw.WriteString("# TYPE prompt_errors_total counter\n")
+		for _, job := range jobs {
+			bw.WriteString(fmt.Sprintf(`prompt_errors_total{exporter="%s"} %d`, job.Name, job.ErrorCount))
+			bw.WriteRune('\n')
+		}
+		bw.Flush()
 	})
 }
 
-func runExporter(exporter Exporter, w io.Writer) {
-	logger.Debugf("Running exporter %#v", exporter)
+func runJob(job Job, w io.Writer) {
+	logger.Debugf("Running exporter %q", job.Name)
 
-	err := exporter.Exec(w)
+	err := job.Exporter.Exec(w)
 	if err != nil {
-		logger.Errorf("Exporter failed to run: %s", err)
+		logger.Errorf("Exporter %q failed to run: %s", job.Name, err)
 	}
 }
 
