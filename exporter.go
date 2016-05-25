@@ -30,8 +30,7 @@ func (exp *BaseExporter) Exec(w io.Writer) error {
 	exp.RLock()
 	if exp.MinInterval != nil && exp.lastRun != nil && time.Since(*exp.lastRun).Seconds() < *exp.MinInterval {
 		logger.Debugf("Min interval not yet met; returning cached copy")
-		c, err := io.Copy(w, bytes.NewBuffer(exp.cached))
-		logger.Debugf("c=%#v", c)
+		_, err := io.Copy(w, bytes.NewBuffer(exp.cached))
 		exp.RUnlock()
 		return err
 	}
