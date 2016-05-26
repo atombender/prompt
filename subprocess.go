@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os/exec"
 	"time"
@@ -67,7 +68,7 @@ func (exp *SubprocessExporter) Exec(w io.Writer) error {
 			return err
 		}
 	} else {
-		logger.Errorf("Process finished with non-zero exit code: %s",
+		return fmt.Errorf("Process finished with non-zero exit code: %s",
 			exp.cmd.ProcessState.String())
 	}
 
