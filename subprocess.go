@@ -9,6 +9,7 @@ import (
 )
 
 type SubprocessExporter struct {
+	command   string
 	cmd       *exec.Cmd
 	buf       *bytes.Buffer
 	stderrBuf *bytes.Buffer
@@ -20,6 +21,7 @@ func NewSubprocessExporter(command string) *SubprocessExporter {
 	cmd.Stdin = nil
 	return &SubprocessExporter{
 		cmd:       cmd,
+		command:   command,
 		buf:       new(bytes.Buffer),
 		stderrBuf: new(bytes.Buffer),
 	}
@@ -48,7 +50,7 @@ func (exp *SubprocessExporter) Exec(w io.Writer) error {
 		if err != nil && exp.err == nil {
 			exp.err = err
 		} else if exp.stderrBuf.Len() > 0 {
-			logger.Errorf("[stderr from %q] %s", exp.cmd.Path, exp.stderrBuf.String())
+			logger.Errorf("[%s] %s", exp.command, exp.stderrBuf.String())
 		}
 	}()
 
@@ -63,13 +65,13 @@ func (exp *SubprocessExporter) Exec(w io.Writer) error {
 	elapsedTime := time.Since(startTime)
 
 	if exp.cmd.ProcessState.Success() {
-		logger.Debugf("Process finished successfully in %s", elapsedTime.String())
+		logger.Debugf("[%s] Process finished successfully in %s", exp.command, elapsedTime.String())
 		if _, err := io.Copy(w, exp.buf); err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("Process finished with non-zero exit code: %s",
-			exp.cmd.ProcessState.String())
+		return fmt.Errorf("[%s] Process finished with non-zero exit code: %s",
+			exp.command, exp.cmd.ProcessState.String())
 	}
 
 	if exp.err != nil {
